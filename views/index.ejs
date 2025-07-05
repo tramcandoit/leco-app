@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LECO Chatbot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="wrapper">
+    <div class="chat-card">
+      <header>
+        <h1>LECO – Trợ lý Pháp lý</h1>
+        <p id="sub-title">Chọn chủ đề để bắt đầu</p>
+      </header>
+
+      <div id="pre-chat" class="pre-chat visible">
+        <button onclick="selectTopic('Luật hôn nhân')">Luật hôn nhân</button>
+        <button onclick="selectTopic('Tình huống')">Tình huống</button>
+      </div>
+
+      <div id="chat-box" class="chat-box hidden">
+        <div id="chat-history" class="chat-history"></div>
+
+        <form id="chat-form" class="chat-form">
+          <input type="text" id="user-input" placeholder="Nhập câu hỏi..." required />
+          <button type="submit">📨</button>
+        </form>
+
+        <div class="back-button-wrapper">
+          <button class="back-button" onclick="goBack()">⬅️ Quay lại chọn chủ đề</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+      let selectedTopic = "";
+  let selectedSourceType = "law"; // mặc định
+
+  function selectTopic(topic) {
+    if (topic === "Hôn nhân") {
+      selectedSourceType = "law";
+    } else if (topic === "Tình huống") {
+      selectedSourceType = "judgment";
+    }
+
+    selectedTopic = topic;
+    document.getElementById("sub-title").textContent = `Đang tư vấn chủ đề: ${topic}`;
+    switchView("pre-chat", "chat-box");
+
+    addMessage("user", `Tôi muốn tư vấn về: ${topic}`);
+    addMessage("bot", `Bạn đã chọn chủ đề "${topic}". Mời bạn đặt câu hỏi.`);
+  }
+
+  function goBack() {
+    document.getElementById("chat-history").innerHTML = "";
+    document.getElementById("user-input").value = "";
+    document.getElementById("sub-title").textContent = "Chọn chủ đề để bắt đầu";
+    switchView("chat-box", "pre-chat");
+  }
+
+  function addMessage(sender, content) {
+    const chat = document.getElementById("chat-history");
+    const msg = document.createElement("div");
+    msg.classList.add("chat-message", sender);
+    msg.innerHTML = `<div class="bubble">${content}</div>`;
+    chat.appendChild(msg);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function switchView(hideId, showId) {
+    const hideEl = document.getElementById(hideId);
+    const showEl = document.getElementById(showId);
+
+    hideEl.classList.remove("visible");
+    hideEl.classList.add("fade-out");
+    setTimeout(() => {
+      hideEl.classList.add("hidden");
+      hideEl.classList.remove("fade-out");
+
+      showEl.classList.remove("hidden");
+      showEl.classList.add("fade-in");
+      showEl.classList.add("visible");
+
+      setTimeout(() => {
+        showEl.classList.remove("fade-in");
+      }, 400);
+    }, 300);
+  }
+
+  document.getElementById("chat-form").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    const input = document.getElementById("user-input");
+    const question = input.value.trim();
+    if (!question) return;
+
+    addMessage("user", question);
+    input.value = "";
+
+    try {
+      const res = await fetch("http://localhost:5000/judgment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: question,
+          source_type: selectedSourceType
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        addMessage("bot", data.answer || "✅ Đã nhận phản hồi, nhưng không có nội dung.");
+      } else {
+        const errorText = await res.text();
+        addMessage("bot", `❌ Lỗi từ server: ${errorText}`);
+      }
+    } catch (error) {
+      console.error(error);
+      addMessage("bot", "❌ Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
+    }
+  });
+  </script>
+</body>
+</html>
